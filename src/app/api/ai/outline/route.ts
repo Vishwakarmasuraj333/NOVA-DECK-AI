@@ -11,20 +11,14 @@ export async function POST(req: Request) {
     }
 
     const status = getAIProviderStatus();
-    if (!status.isConfigured) {
-      return NextResponse.json(
-        {
-          error: "MISSING_GEMINI_CREDENTIALS",
-          message:
-            "Google Gemini API key is missing. To generate presentation outlines with real AI, please configure GEMINI_API_KEY in your .env file or project environment.",
-          setupUrl: "https://aistudio.google.com/",
-        },
-        { status: 503 }
-      );
-    }
-
     const { title, outline } = await generateOutlineWithAI(body);
-    return NextResponse.json({ success: true, title, outline });
+    return NextResponse.json({
+      success: true,
+      title,
+      outline,
+      provider: status.isConfigured ? "gemini" : "local_synthesis",
+      isLiveAI: status.isConfigured,
+    });
   } catch (error: any) {
     console.error("AI Outline error:", error);
     return NextResponse.json(

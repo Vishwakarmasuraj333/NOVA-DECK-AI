@@ -11,20 +11,13 @@ export async function POST(req: Request) {
     }
 
     const status = getAIProviderStatus();
-    if (!status.isConfigured) {
-      return NextResponse.json(
-        {
-          error: "MISSING_GEMINI_CREDENTIALS",
-          message:
-            "Google Gemini API key is missing. Add GEMINI_API_KEY in .env to generate live presentation slides.",
-          setupUrl: "https://aistudio.google.com/",
-        },
-        { status: 503 }
-      );
-    }
-
     const slides = await generateSlidesWithAI(body.input, body.outline);
-    return NextResponse.json({ success: true, slides });
+    return NextResponse.json({
+      success: true,
+      slides,
+      provider: status.isConfigured ? "gemini" : "local_synthesis",
+      isLiveAI: status.isConfigured,
+    });
   } catch (error: any) {
     console.error("AI Slides Generation error:", error);
     return NextResponse.json(

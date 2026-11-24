@@ -26,6 +26,7 @@ yarn-error.log*
 
 # Testing
 /coverage
+*.tsbuildinfo
 
 # OS / Editor files
 .DS_Store

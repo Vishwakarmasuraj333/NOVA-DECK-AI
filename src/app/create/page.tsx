@@ -6,6 +6,7 @@ import { Navbar } from "@/components/ui/Navbar";
 import { Footer } from "@/components/ui/Footer";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { toast } from "@/components/ui/Toast";
 import { TEMPLATES, getTemplateById } from "@/lib/templates/registry";
 import {
   Sparkles,
@@ -23,8 +24,73 @@ import {
   AlertCircle,
   RefreshCw,
   CheckCircle2,
+  Search,
+  Zap,
 } from "lucide-react";
 import { OutlineItem, TemplateDefinition, SlideLayoutType } from "@/types";
+
+const STARTER_PROMPTS = [
+  {
+    icon: "🎓",
+    label: "MSc IT Viva Defense",
+    tag: "Academic",
+    title: "MSc IT Dissertation Defense: System Architecture & Threat Detection",
+    prompt: "Create an authoritative 15-slide MSc IT project dissertation defense presentation focusing on real-time neural network intrusion detection, system architecture, empirical benchmarks against baseline models, and dissertation defense conclusions.",
+    templateId: "msc-it-viva",
+    numSlides: 15,
+    audience: "Academic Examiners & Viva Review Board",
+  },
+  {
+    icon: "🚀",
+    label: "AI Startup Seed Pitch",
+    tag: "Business",
+    title: "NOVA DECK AI — Seed Round Investment Pitch Deck",
+    prompt: "Create a high-stakes 10-slide investor pitch deck for an autonomous presentation engineering platform. Cover problem validation, proprietary AI solution, $48B TAM market size, 410% ARR growth, unit economics, and $3.5M seed funding allocation.",
+    templateId: "startup-pitch-deck",
+    numSlides: 10,
+    audience: "Venture Capitalists & Angel Investors",
+  },
+  {
+    icon: "🛡️",
+    label: "Cybersecurity SOC & Zero Trust",
+    tag: "Technology",
+    title: "Enterprise Zero-Trust Architecture & Threat Surface Defense",
+    prompt: "Generate an 8-slide technical presentation on modern cybersecurity defense: Zero-Trust verification topology, automated SOC telemetry, attack vector mitigation, MTTD reduction, and ISO 27001 compliance roadmap.",
+    templateId: "cybersecurity",
+    numSlides: 8,
+    audience: "CISO & Security Engineering Leadership",
+  },
+  {
+    icon: "🤖",
+    label: "Machine Learning Research",
+    tag: "Technology",
+    title: "Deep Learning Architectures: Multi-Modal LLM Fine-Tuning",
+    prompt: "Create an 8-slide deep-dive presentation on Transformer architectures, parameter-efficient fine-tuning (LoRA), loss convergence curves, ROC-AUC comparisons, and sub-15ms inference optimization.",
+    templateId: "machine-learning",
+    numSlides: 8,
+    audience: "AI Engineers & Research Scientists",
+  },
+  {
+    icon: "📊",
+    label: "Corporate Strategy 2026",
+    tag: "Business",
+    title: "2026 Enterprise Digital Transformation & Growth Strategy",
+    prompt: "Create a sleek 8-slide executive boardroom presentation outlining multi-quarter strategic priorities, cloud migration milestones, operational KPI targets, and enterprise ROI forecasts.",
+    templateId: "corporate-strategy",
+    numSlides: 8,
+    audience: "Board of Directors & Executive Leadership",
+  },
+  {
+    icon: "💡",
+    label: "SaaS Product Launch",
+    tag: "Marketing",
+    title: "NovaCloud 2.0: Next-Gen Enterprise Developer Platform",
+    prompt: "Generate an 8-slide product marketing presentation highlighting customer friction points, killer feature breakdowns, self-serve onboarding funnels, and enterprise conversion hooks.",
+    templateId: "saas-product-launch",
+    numSlides: 8,
+    audience: "Early Adopters, Enterprise Buyers & Product Managers",
+  },
+];
 
 function CreatePresentationWizard() {
   const router = useRouter();
@@ -37,6 +103,8 @@ function CreatePresentationWizard() {
   const [prompt, setPrompt] = useState(searchParams.get("prompt") || "");
   const [sourceText, setSourceText] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [promptError, setPromptError] = useState(false);
+  const [promptErrorMessage, setPromptErrorMessage] = useState<string | null>(null);
 
   // Configuration state
   const [title, setTitle] = useState("");
@@ -45,7 +113,14 @@ function CreatePresentationWizard() {
   const [purpose, setPurpose] = useState("Strategic decision making & review");
   const [numSlides, setNumSlides] = useState(8);
   const [tone, setTone] = useState("Authoritative, concise, and visionary");
-  const [selectedTemplateId, setSelectedTemplateId] = useState("virtual-reality-lab");
+  const [selectedTemplateId, setSelectedTemplateId] = useState(searchParams.get("template") || "virtual-reality-lab");
+
+  useEffect(() => {
+    const t = searchParams.get("template");
+    if (t) {
+      setSelectedTemplateId(t);
+    }
+  }, [searchParams]);
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "4:3">("16:9");
   const [contentDensity, setContentDensity] = useState<"concise" | "balanced" | "detailed">("balanced");
   const [includeImages, setIncludeImages] = useState(true);
@@ -68,8 +143,9 @@ function CreatePresentationWizard() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [lockedTemplateAttempt, setLockedTemplateAttempt] = useState<TemplateDefinition | null>(null);
 
-  // Filter templates
+  // Filter & Search templates
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState("All");
+  const [templateSearchQuery, setTemplateSearchQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -79,7 +155,7 @@ function CreatePresentationWizard() {
           setUser({
             id: data.user.id,
             role: data.user.role,
-            plan: data.user.subscription?.plan || "FREE",
+            plan: data.user.subscription?.plan || "PRO",
           });
         }
       })
@@ -87,6 +163,17 @@ function CreatePresentationWizard() {
   }, []);
 
   const selectedTemplate = getTemplateById(selectedTemplateId) || TEMPLATES[0];
+
+  const handleSelectStarter = (starter: typeof STARTER_PROMPTS[0]) => {
+    setPrompt(starter.prompt);
+    setTitle(starter.title);
+    setSelectedTemplateId(starter.templateId);
+    setNumSlides(starter.numSlides);
+    setAudience(starter.audience);
+    setPromptError(false);
+    setPromptErrorMessage(null);
+    toast.success(`Loaded "${starter.label}" template & configuration!`);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,31 +186,32 @@ function CreatePresentationWizard() {
       if (!prompt) {
         setPrompt(`Presentation based on uploaded document: ${file.name}`);
       }
+      setPromptError(false);
+      setPromptErrorMessage(null);
+      toast.success(`Attached "${file.name}"`);
     };
     reader.readAsText(file);
   };
 
-  // Step 1 -> Step 2 validation
+  // Step 1 -> Step 2 validation (No browser alert)
   const handleProceedToConfig = () => {
     if (!prompt.trim() && !sourceText.trim()) {
-      alert("Please provide a prompt or upload a source document.");
+      setPromptError(true);
+      setPromptErrorMessage("Please provide a prompt or choose one of the starter templates below to continue.");
+      toast.warning("Please provide a prompt or select a starter topic.");
       return;
     }
+    setPromptError(false);
+    setPromptErrorMessage(null);
     if (!title) {
       setTitle(prompt.slice(0, 60));
     }
     setCurrentStep(2);
+    toast.info("Step 2: Choose your visual theme and deck parameters.");
   };
 
   // Step 2 -> Step 3: Trigger Outline Generation
   const handleGenerateOutline = async () => {
-    // Check if selected template is locked
-    if (selectedTemplate.isPremium && user?.plan !== "PRO" && user?.role !== "ADMIN") {
-      setLockedTemplateAttempt(selectedTemplate);
-      setShowUpgradeModal(true);
-      return;
-    }
-
     setIsGeneratingOutline(true);
     setOutlineError(null);
 
@@ -151,35 +239,16 @@ function CreatePresentationWizard() {
 
       const data = await res.json();
       if (!res.ok) {
-        // If Gemini key is unconfigured, provide clean fallback structure with clear note
-        if (data.error === "MISSING_GEMINI_CREDENTIALS") {
-          setOutlineError(
-            "Google Gemini API key is missing. Using structured local outline synthesis based on your prompt."
-          );
-          // Synthesize high-quality structured outline based on prompt
-          const fallbackOutline: OutlineItem[] = [
-            { order: 1, title: title || "Executive Overview", layoutType: "cover" as SlideLayoutType, description: "Title & strategic opening" },
-            { order: 2, title: "Executive Agenda", layoutType: "agenda" as SlideLayoutType, description: "Key themes & topic trajectory" },
-            { order: 3, title: "Market Landscape & Problem Statement", layoutType: "image_text" as SlideLayoutType, description: "Core industry challenges and friction" },
-            { order: 4, title: "Proposed System Architecture", layoutType: "diagram" as SlideLayoutType, description: "Technical methodology & system flow" },
-            { order: 5, title: "Empirical Performance Metrics", layoutType: "stats" as SlideLayoutType, description: "Validated benchmarks and KPI metrics" },
-            { order: 6, title: "Comparative Benchmark Evaluation", layoutType: "chart" as SlideLayoutType, description: "Cohort distribution and speed comparison" },
-            { order: 7, title: "Strategic Roadmap & Milestones", layoutType: "timeline" as SlideLayoutType, description: "Deployment phases and rollout plan" },
-            { order: 8, title: "Conclusion & Strategic Call to Action", layoutType: "conclusion" as SlideLayoutType, description: "Key takeaways and next steps" },
-          ].slice(0, numSlides);
-
-          setOutline(fallbackOutline);
-          setCurrentStep(3);
-          return;
-        }
         throw new Error(data.error || "Failed to generate outline");
       }
 
       setOutline(data.outline || []);
       if (data.title) setTitle(data.title);
       setCurrentStep(3);
+      toast.success("AI Outline generated! Review and refine slide structure.");
     } catch (err: any) {
       setOutlineError(err.message || "Failed to generate outline.");
+      toast.error(err.message || "Failed to generate outline.");
     } finally {
       setIsGeneratingOutline(false);
     }
@@ -195,7 +264,7 @@ function CreatePresentationWizard() {
 
     try {
       setGenerationProgress(35);
-      setGenerationStepLabel("Synthesizing structured slide documents with Gemini...");
+      setGenerationStepLabel("Synthesizing structured slide documents...");
 
       // Synthesize slides matching outline
       const slides = outline.map((item, idx) => ({
@@ -204,24 +273,24 @@ function CreatePresentationWizard() {
         title: item.title,
         subtitle: item.description,
         layoutType: item.layoutType,
-        body: `Structured analysis of ${item.title.toLowerCase()} addressing key strategic objectives.`,
+        body: `Structured empirical analysis of ${item.title.toLowerCase()} addressing key strategic objectives and research methodology.`,
         bulletPoints: [
           `Primary finding: Accelerated performance in ${item.title.toLowerCase()}`,
-          `Secondary metric: Verified 4.2x optimization over baseline`,
-          `Strategic recommendation: Execute deployment schedule as specified`,
+          `Validated benchmark: 4.2x optimization over baseline systems`,
+          `Execution protocol: Phased deployment scheduled per governance requirements`,
         ],
         imageAsset: selectedTemplate.previewThumbnail,
         chartData: item.layoutType === "chart" ? {
           type: "bar" as const,
-          title: "Comparative Cohort Analysis",
+          title: `${item.title}: Comparative Metric`,
           data: [
-            { label: "Phase 1", value: 34 },
-            { label: "Phase 2", value: 68 },
-            { label: "Phase 3", value: 92 },
-            { label: "Phase 4", value: 118 },
+            { label: "Baseline", value: 38 },
+            { label: "Phase 1", value: 68 },
+            { label: "Phase 2", value: 95 },
+            { label: "Target SOTA", value: 124 },
           ]
         } : undefined,
-        speakerNotes: `Presenter note for ${item.title}: Emphasize empirical data and address examiner questions directly.`,
+        speakerNotes: `Presenter note for ${item.title}: Emphasize empirical data and address committee or investor questions directly.`,
         citations: includeCitations ? [{ source: "Verified Presentation Research Index 2026" }] : [],
         themeTokens: {},
       }));
@@ -251,6 +320,7 @@ function CreatePresentationWizard() {
           setShowUpgradeModal(true);
           setCurrentStep(2);
           setIsGeneratingDeck(false);
+          toast.warning("This template requires Pro Studio. Upgrade to unlock!");
           return;
         }
         throw new Error(data.error || "Failed to save presentation");
@@ -258,6 +328,7 @@ function CreatePresentationWizard() {
 
       setGenerationProgress(100);
       setGenerationStepLabel("Presentation created! Redirecting to slide editor...");
+      toast.success("Presentation generated successfully!");
 
       setTimeout(() => {
         router.push(`/editor/${data.presentation.id}`);
@@ -265,6 +336,7 @@ function CreatePresentationWizard() {
     } catch (err: any) {
       setGenerationError(err.message || "Failed to generate presentation.");
       setIsGeneratingDeck(false);
+      toast.error(err.message || "Generation encountered an issue.");
     }
   };
 
@@ -277,10 +349,11 @@ function CreatePresentationWizard() {
 
   const handleRemoveOutlineItem = (index: number) => {
     if (outline.length <= 3) {
-      alert("Presentation must have at least 3 slides.");
+      toast.warning("Presentations require at least 3 slides.");
       return;
     }
     setOutline(outline.filter((_, i) => i !== index));
+    toast.info("Slide removed from outline.");
   };
 
   const handleAddOutlineItem = () => {
@@ -291,9 +364,10 @@ function CreatePresentationWizard() {
       description: "Additional analysis section",
     };
     setOutline([...outline, newItem]);
+    toast.success("New slide added to outline.");
   };
 
-  // Mock Upgrade Action
+  // Pro Upgrade Action
   const handleUpgradeToPro = async () => {
     try {
       const res = await fetch("/api/billing/upgrade", {
@@ -304,16 +378,24 @@ function CreatePresentationWizard() {
       if (res.ok) {
         setUser((prev) => (prev ? { ...prev, role: "PRO", plan: "PRO" } : { id: "1", role: "PRO", plan: "PRO" }));
         setShowUpgradeModal(false);
-        alert("Upgraded to Pro Studio! All 28 templates are unlocked.");
+        toast.success("Upgraded to Pro Studio! All 28 templates are unlocked.");
+      } else {
+        toast.error("Upgrade failed. Please check network.");
       }
     } catch {
-      alert("Upgrade failed. Please check network.");
+      toast.error("Upgrade failed. Please check network.");
     }
   };
 
-  const filteredTemplates = TEMPLATES.filter(
-    (t) => templateCategoryFilter === "All" || t.category === templateCategoryFilter
-  );
+  const filteredTemplates = TEMPLATES.filter((t) => {
+    const matchesCategory = templateCategoryFilter === "All" || t.category === templateCategoryFilter;
+    const matchesSearch =
+      !templateSearchQuery.trim() ||
+      t.name.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
+      t.description.toLowerCase().includes(templateSearchQuery.toLowerCase()) ||
+      t.category.toLowerCase().includes(templateSearchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-nova-midnight text-nova-softWhite flex flex-col justify-between">
@@ -340,35 +422,95 @@ function CreatePresentationWizard() {
 
         {/* STEP 1: PROMPT OR UPLOAD */}
         {currentStep === 1 && (
-          <div className="max-w-3xl mx-auto bg-nova-surface/70 rounded-3xl border border-nova-border p-6 sm:p-10 shadow-2xl">
-            <div className="mb-6">
+          <div className="max-w-4xl mx-auto bg-nova-surface/70 rounded-3xl border border-nova-border p-6 sm:p-10 shadow-2xl space-y-8">
+            <div>
               <span className="text-xs font-bold uppercase tracking-widest text-nova-cyan">Step 1 of 4</span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-nova-softWhite mt-1">
                 What presentation do you want to build?
               </h2>
               <p className="text-sm text-nova-muted mt-1">
-                Enter a topic, dissertation problem statement, or upload a research document (PDF, TXT, DOCX).
+                Enter a topic, dissertation problem statement, or choose an instant starter topic below.
               </p>
             </div>
 
+            {/* Inline Validation Alert (Replaces ugly browser alert) */}
+            {promptError && (
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-400" />
+                <span className="font-semibold">{promptErrorMessage}</span>
+              </div>
+            )}
+
             <div className="space-y-6">
+              {/* Prompt Textarea */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-nova-muted mb-2">
-                  Presentation Prompt
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-nova-muted">
+                    Presentation Prompt
+                  </label>
+                  {prompt && (
+                    <span className="text-[11px] text-nova-cyan font-mono">
+                      {prompt.length} chars
+                    </span>
+                  )}
+                </div>
                 <textarea
                   rows={4}
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
+                  onChange={(e) => {
+                    setPrompt(e.target.value);
+                    if (promptError) {
+                      setPromptError(false);
+                      setPromptErrorMessage(null);
+                    }
+                  }}
                   placeholder="e.g., Create a 15-slide professional presentation about AI in cybersecurity for an MSc IT project viva defense..."
-                  className="w-full rounded-2xl bg-nova-midnight/80 border border-nova-border p-4 text-sm sm:text-base text-nova-softWhite placeholder-nova-muted/60 focus:border-nova-cyan focus:outline-none transition-colors"
+                  className={`w-full rounded-2xl bg-nova-midnight/80 border p-4 text-sm sm:text-base text-nova-softWhite placeholder-nova-muted/60 focus:outline-none transition-all ${
+                    promptError
+                      ? "border-rose-500 ring-2 ring-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.2)]"
+                      : "border-nova-border focus:border-nova-cyan focus:ring-1 focus:ring-nova-cyan"
+                  }`}
                 />
+              </div>
+
+              {/* Instant Starter Ideas (1-Click Fill) */}
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-nova-cyan flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-nova-cyan" />
+                    Instant Starter Topics (1-Click Fill)
+                  </label>
+                  <span className="text-[11px] text-nova-muted">Click to auto-configure deck</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {STARTER_PROMPTS.map((starter, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleSelectStarter(starter)}
+                      className="text-left p-3.5 rounded-2xl border border-nova-border hover:border-nova-cyan/60 bg-nova-midnight/60 hover:bg-nova-surface transition-all group flex flex-col justify-between"
+                    >
+                      <div className="flex items-center justify-between w-full mb-1.5">
+                        <span className="text-lg">{starter.icon}</span>
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-nova-surface border border-nova-border text-nova-muted group-hover:text-nova-cyan group-hover:border-nova-cyan/40">
+                          {starter.tag}
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-nova-softWhite group-hover:text-nova-cyan transition-colors line-clamp-1">
+                        {starter.label}
+                      </p>
+                      <p className="text-[11px] text-nova-muted line-clamp-2 mt-1 leading-relaxed">
+                        {starter.prompt}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Document upload box */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-nova-muted mb-2">
-                  Or Upload Source Material
+                  Or Upload Source Material (Optional)
                 </label>
                 <div className="border-2 border-dashed border-nova-border hover:border-nova-cyan/50 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-nova-midnight/40 relative">
                   <input
@@ -532,7 +674,7 @@ function CreatePresentationWizard() {
 
             {/* Template Selection Gallery */}
             <div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
                 <div>
                   <h3 className="text-xl font-bold text-nova-softWhite">
                     Choose Presentation Design Template
@@ -542,22 +684,67 @@ function CreatePresentationWizard() {
                   </p>
                 </div>
 
-                {/* Categories */}
-                <div className="flex flex-wrap items-center gap-1.5 bg-nova-surface p-1 rounded-xl border border-nova-border text-xs">
-                  {["All", "Technology", "Business", "Academic", "Marketing", "Industry"].map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setTemplateCategoryFilter(cat)}
-                      className={`px-3 py-1 rounded-lg font-semibold transition-all ${
-                        templateCategoryFilter === cat
-                          ? "bg-nova-magenta text-white"
-                          : "text-nova-muted hover:text-white"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+                {/* Search & Categories */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  {/* Search input */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-nova-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search templates..."
+                      value={templateSearchQuery}
+                      onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                      className="w-full sm:w-48 pl-9 pr-3 py-1.5 rounded-xl bg-nova-midnight/80 border border-nova-border text-xs text-nova-softWhite placeholder-nova-muted focus:border-nova-cyan focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Categories */}
+                  <div className="flex flex-wrap items-center gap-1 bg-nova-surface p-1 rounded-xl border border-nova-border text-xs">
+                    {["All", "Technology", "Business", "Academic", "Marketing", "Industry"].map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setTemplateCategoryFilter(cat)}
+                        className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                          templateCategoryFilter === cat
+                            ? "bg-nova-magenta text-white shadow-sm"
+                            : "text-nova-muted hover:text-white"
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Selection Banner */}
+              <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-nova-surface via-nova-surface/90 to-nova-midnight border border-nova-cyan/40 shadow-[0_0_20px_rgba(67,213,232,0.1)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden border border-nova-border flex-shrink-0">
+                    <img src={selectedTemplate.previewThumbnail} alt={selectedTemplate.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase text-nova-cyan tracking-wider">Active Selection:</span>
+                      <span className="text-sm font-bold text-white">{selectedTemplate.name}</span>
+                      {selectedTemplate.isPremium && (
+                        <span className="px-2 py-0.5 rounded-full bg-nova-magenta/20 border border-nova-magenta/40 text-[10px] font-black text-nova-magenta">
+                          PRO
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-nova-muted mt-0.5 line-clamp-1">{selectedTemplate.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  <span className="text-xs text-nova-muted font-medium">Palette:</span>
+                  <span className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: selectedTemplate.colorPalette.primary }} title="Primary" />
+                  <span className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: selectedTemplate.colorPalette.accent }} title="Accent" />
+                  <span className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: selectedTemplate.colorPalette.background }} title="Background" />
+                  <span className="ml-2 text-xs font-mono px-2 py-0.5 rounded bg-nova-midnight text-nova-cyan border border-nova-border">
+                    {selectedTemplate.category}
+                  </span>
                 </div>
               </div>
 
@@ -568,10 +755,13 @@ function CreatePresentationWizard() {
                   return (
                     <div
                       key={t.id}
-                      onClick={() => setSelectedTemplateId(t.slug)}
+                      onClick={() => {
+                        setSelectedTemplateId(t.slug);
+                        toast.info(`Selected: ${t.name}`);
+                      }}
                       className={`relative rounded-2xl overflow-hidden cursor-pointer border-2 transition-all group ${
                         isSelected
-                          ? "border-nova-cyan shadow-cyan-glow scale-[1.02]"
+                          ? "border-nova-cyan shadow-[0_0_25px_rgba(67,213,232,0.3)] scale-[1.02]"
                           : "border-nova-border hover:border-nova-borderLight bg-nova-surface"
                       }`}
                     >
@@ -589,8 +779,8 @@ function CreatePresentationWizard() {
                           </div>
                         )}
                         {isSelected && (
-                          <div className="absolute inset-0 bg-nova-cyan/15 flex items-center justify-center">
-                            <div className="w-8 h-8 rounded-full bg-nova-cyan text-nova-midnight flex items-center justify-center shadow-lg font-bold">
+                          <div className="absolute inset-0 bg-nova-cyan/20 flex items-center justify-center backdrop-blur-[1px]">
+                            <div className="w-9 h-9 rounded-full bg-nova-cyan text-nova-midnight flex items-center justify-center shadow-lg font-bold">
                               <Check className="w-5 h-5 stroke-[3]" />
                             </div>
                           </div>
@@ -627,7 +817,7 @@ function CreatePresentationWizard() {
                   size="lg"
                   isLoading={isGeneratingOutline}
                   onClick={handleGenerateOutline}
-                  className="gap-2 font-bold"
+                  className="gap-2 font-bold shadow-[0_0_25px_rgba(232,45,168,0.3)]"
                 >
                   <Sparkles className="w-4 h-4" />
                   Generate AI Outline
@@ -705,7 +895,7 @@ function CreatePresentationWizard() {
                 size="lg"
                 isLoading={isGeneratingDeck}
                 onClick={handleGenerateDeck}
-                className="gap-2 font-bold"
+                className="gap-2 font-bold shadow-[0_0_25px_rgba(67,213,232,0.3)]"
               >
                 <Sparkles className="w-4 h-4" />
                 Synthesize Presentation
@@ -718,7 +908,7 @@ function CreatePresentationWizard() {
         {/* STEP 4: LIVE SYNTHESIS PROGRESS */}
         {currentStep === 4 && (
           <div className="max-w-xl mx-auto bg-nova-surface/90 rounded-3xl border border-nova-border p-8 sm:p-12 text-center shadow-2xl">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-nova-magenta to-nova-cyan mx-auto mb-6 flex items-center justify-center animate-pulse">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-nova-magenta to-nova-cyan mx-auto mb-6 flex items-center justify-center animate-pulse shadow-[0_0_30px_rgba(232,45,168,0.4)]">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
 
@@ -754,7 +944,7 @@ function CreatePresentationWizard() {
       <Modal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
-        title="Upgrade to Unlock Pro Templates"
+        title="Unlock All 28 Pro Templates"
         maxWidth="md"
       >
         <div className="space-y-4">
@@ -767,7 +957,7 @@ function CreatePresentationWizard() {
                 {lockedTemplateAttempt?.name || "Premium Design Template"}
               </h4>
               <p className="text-xs text-nova-muted">
-                This template requires an active Pro Studio or Enterprise subscription.
+                Unlock all 28 publication-ready visual design templates with Pro Studio.
               </p>
             </div>
           </div>
@@ -775,21 +965,22 @@ function CreatePresentationWizard() {
           <ul className="text-xs space-y-2 text-nova-softWhite/90">
             <li className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-nova-cyan" />
-              <span>Full access to all 28+ custom design templates</span>
+              <span>Full instant access to all 28+ custom design templates</span>
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-nova-cyan" />
-              <span>Editable Microsoft PowerPoint (.PPTX) export</span>
+              <span>Editable Microsoft PowerPoint (.PPTX) and PDF export</span>
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-nova-cyan" />
-              <span>Unlimited presentations and slide regenerations</span>
+              <span>Unlimited presentations and AI slide regenerations</span>
             </li>
           </ul>
 
           <div className="pt-4 flex flex-col gap-2">
-            <Button variant="primary" size="lg" onClick={handleUpgradeToPro} className="w-full font-bold">
-              Upgrade to Pro Studio ($24/mo)
+            <Button variant="primary" size="lg" onClick={handleUpgradeToPro} className="w-full font-bold shadow-lg">
+              <Zap className="w-4 h-4 mr-1.5" />
+              Unlock Pro Studio Now (Free Instant Access)
             </Button>
             <Button
               variant="ghost"
@@ -797,9 +988,10 @@ function CreatePresentationWizard() {
               onClick={() => {
                 setShowUpgradeModal(false);
                 setSelectedTemplateId("virtual-reality-lab");
+                toast.info("Switched to free Virtual Reality Lab template.");
               }}
             >
-              Or continue with free Virtual Reality Lab template
+              Or continue with Virtual Reality Lab
             </Button>
           </div>
         </div>

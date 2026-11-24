@@ -96,3 +96,4 @@ export const NovaLogo: React.FC<NovaLogoProps> = ({
   );
 };
 export default NovaLogo;
+

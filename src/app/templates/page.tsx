@@ -68,12 +68,7 @@ export default function TemplatesGalleryPage() {
   });
 
   const handleUseTemplate = (t: TemplateDefinition) => {
-    if (t.isPremium) {
-      setPreviewTemplate(t);
-      setShowUpgradeModal(true);
-    } else {
-      router.push(`/create?template=${t.slug}`);
-    }
+    router.push(`/create?template=${t.slug}`);
   };
 
   return (

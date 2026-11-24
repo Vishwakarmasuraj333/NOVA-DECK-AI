@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Check, Lock, Sparkles, CreditCard, ShieldCheck } from "lucide-react";
+import { toast } from "@/components/ui/Toast";
 
 export default function BillingPage() {
   const [user, setUser] = useState<any>(null);
@@ -32,9 +33,12 @@ export default function BillingPage() {
           role: "PRO",
           subscription: { plan: "PRO", status: "ACTIVE" },
         }));
+        toast.success("Workspace upgraded to Pro Studio! All 28 templates unlocked.");
+      } else {
+        toast.error("Failed to process upgrade.");
       }
     } catch {
-      alert("Failed to process upgrade.");
+      toast.error("Failed to process upgrade.");
     } finally {
       setIsUpgrading(false);
     }

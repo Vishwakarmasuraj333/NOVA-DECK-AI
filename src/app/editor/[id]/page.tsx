@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SlideRenderer } from "@/components/presentation/SlideRenderer";
 import { getTemplateById } from "@/lib/templates/registry";
 import { exportToPptx, exportToPdf } from "@/lib/services/exportService";
+import { toast } from "@/components/ui/Toast";
 import {
   PresentationDocument,
   SlideDocument,
@@ -247,7 +248,7 @@ export default function SlideEditorPage() {
 
   const handleDeleteSlide = (index: number) => {
     if (!presentation || presentation.slides.length <= 1) {
-      alert("Presentation must have at least one slide.");
+      toast.warning("Presentation must have at least one slide.");
       return;
     }
     const updated = presentation.slides
@@ -879,7 +880,7 @@ export default function SlideEditorPage() {
                 size="sm"
                 onClick={() => {
                   navigator.clipboard.writeText(`${window.location.origin}/editor/${presentation.id}/preview`);
-                  alert("Presentation link copied to clipboard!");
+                  toast.success("Presentation link copied to clipboard!");
                 }}
               >
                 Copy
