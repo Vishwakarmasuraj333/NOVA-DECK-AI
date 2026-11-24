@@ -29,69 +29,6 @@ import {
 } from "lucide-react";
 import { OutlineItem, TemplateDefinition, SlideLayoutType } from "@/types";
 
-const STARTER_PROMPTS = [
-  {
-    icon: "🎓",
-    label: "MSc IT Viva Defense",
-    tag: "Academic",
-    title: "MSc IT Dissertation Defense: System Architecture & Threat Detection",
-    prompt: "Create an authoritative 15-slide MSc IT project dissertation defense presentation focusing on real-time neural network intrusion detection, system architecture, empirical benchmarks against baseline models, and dissertation defense conclusions.",
-    templateId: "msc-it-viva",
-    numSlides: 15,
-    audience: "Academic Examiners & Viva Review Board",
-  },
-  {
-    icon: "🚀",
-    label: "AI Startup Seed Pitch",
-    tag: "Business",
-    title: "NOVA DECK AI — Seed Round Investment Pitch Deck",
-    prompt: "Create a high-stakes 10-slide investor pitch deck for an autonomous presentation engineering platform. Cover problem validation, proprietary AI solution, $48B TAM market size, 410% ARR growth, unit economics, and $3.5M seed funding allocation.",
-    templateId: "startup-pitch-deck",
-    numSlides: 10,
-    audience: "Venture Capitalists & Angel Investors",
-  },
-  {
-    icon: "🛡️",
-    label: "Cybersecurity SOC & Zero Trust",
-    tag: "Technology",
-    title: "Enterprise Zero-Trust Architecture & Threat Surface Defense",
-    prompt: "Generate an 8-slide technical presentation on modern cybersecurity defense: Zero-Trust verification topology, automated SOC telemetry, attack vector mitigation, MTTD reduction, and ISO 27001 compliance roadmap.",
-    templateId: "cybersecurity",
-    numSlides: 8,
-    audience: "CISO & Security Engineering Leadership",
-  },
-  {
-    icon: "🤖",
-    label: "Machine Learning Research",
-    tag: "Technology",
-    title: "Deep Learning Architectures: Multi-Modal LLM Fine-Tuning",
-    prompt: "Create an 8-slide deep-dive presentation on Transformer architectures, parameter-efficient fine-tuning (LoRA), loss convergence curves, ROC-AUC comparisons, and sub-15ms inference optimization.",
-    templateId: "machine-learning",
-    numSlides: 8,
-    audience: "AI Engineers & Research Scientists",
-  },
-  {
-    icon: "📊",
-    label: "Corporate Strategy 2026",
-    tag: "Business",
-    title: "2026 Enterprise Digital Transformation & Growth Strategy",
-    prompt: "Create a sleek 8-slide executive boardroom presentation outlining multi-quarter strategic priorities, cloud migration milestones, operational KPI targets, and enterprise ROI forecasts.",
-    templateId: "corporate-strategy",
-    numSlides: 8,
-    audience: "Board of Directors & Executive Leadership",
-  },
-  {
-    icon: "💡",
-    label: "SaaS Product Launch",
-    tag: "Marketing",
-    title: "NovaCloud 2.0: Next-Gen Enterprise Developer Platform",
-    prompt: "Generate an 8-slide product marketing presentation highlighting customer friction points, killer feature breakdowns, self-serve onboarding funnels, and enterprise conversion hooks.",
-    templateId: "saas-product-launch",
-    numSlides: 8,
-    audience: "Early Adopters, Enterprise Buyers & Product Managers",
-  },
-];
-
 function CreatePresentationWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -163,17 +100,6 @@ function CreatePresentationWizard() {
   }, []);
 
   const selectedTemplate = getTemplateById(selectedTemplateId) || TEMPLATES[0];
-
-  const handleSelectStarter = (starter: typeof STARTER_PROMPTS[0]) => {
-    setPrompt(starter.prompt);
-    setTitle(starter.title);
-    setSelectedTemplateId(starter.templateId);
-    setNumSlides(starter.numSlides);
-    setAudience(starter.audience);
-    setPromptError(false);
-    setPromptErrorMessage(null);
-    toast.success(`Loaded "${starter.label}" template & configuration!`);
-  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -429,7 +355,7 @@ function CreatePresentationWizard() {
                 What presentation do you want to build?
               </h2>
               <p className="text-sm text-nova-muted mt-1">
-                Enter a topic, dissertation problem statement, or choose an instant starter topic below.
+                Enter a topic, dissertation problem statement, or upload a research document (PDF, TXT, DOCX).
               </p>
             </div>
 
@@ -471,40 +397,6 @@ function CreatePresentationWizard() {
                       : "border-nova-border focus:border-nova-cyan focus:ring-1 focus:ring-nova-cyan"
                   }`}
                 />
-              </div>
-
-              {/* Instant Starter Ideas (1-Click Fill) */}
-              <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-nova-cyan flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-nova-cyan" />
-                    Instant Starter Topics (1-Click Fill)
-                  </label>
-                  <span className="text-[11px] text-nova-muted">Click to auto-configure deck</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {STARTER_PROMPTS.map((starter, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => handleSelectStarter(starter)}
-                      className="text-left p-3.5 rounded-2xl border border-nova-border hover:border-nova-cyan/60 bg-nova-midnight/60 hover:bg-nova-surface transition-all group flex flex-col justify-between"
-                    >
-                      <div className="flex items-center justify-between w-full mb-1.5">
-                        <span className="text-lg">{starter.icon}</span>
-                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-nova-surface border border-nova-border text-nova-muted group-hover:text-nova-cyan group-hover:border-nova-cyan/40">
-                          {starter.tag}
-                        </span>
-                      </div>
-                      <p className="text-xs font-bold text-nova-softWhite group-hover:text-nova-cyan transition-colors line-clamp-1">
-                        {starter.label}
-                      </p>
-                      <p className="text-[11px] text-nova-muted line-clamp-2 mt-1 leading-relaxed">
-                        {starter.prompt}
-                      </p>
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Document upload box */}
