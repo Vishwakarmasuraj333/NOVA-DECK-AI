@@ -1,0 +1,272 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String
+  passwordHash String
+  role         String        @default("USER") // USER, PRO, ADMIN
+  avatarUrl    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  workspaces   WorkspaceMembership[]
+  ownedWorkspaces Workspace[]
+  presentations Presentation[]
+  favorites    Favorite[]
+  subscription Subscription?
+  usageRecords UsageRecord[]
+  generationJobs GenerationJob[]
+  exportJobs   ExportJob[]
+  auditLogs    AuditLog[]
+  assets       Asset[]
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       WorkspaceMembership[]
+  presentations Presentation[]
+  assets        Asset[]
+}
+
+model WorkspaceMembership {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        String    @default("MEMBER") // OWNER, ADMIN, MEMBER, VIEWER
+  createdAt   DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Presentation {
+  id           String    @id @default(uuid())
+  title        String
+  description  String?
+  slug         String
+  aspectRatio  String    @default("16:9") // 16:9, 4:3, A4
+  templateId   String
+  themeTokens  String?   // JSON string of theme tokens
+  workspaceId  String
+  userId       String
+  isArchived   Boolean   @default(false)
+  isDeleted    Boolean   @default(false)
+  deletedAt    DateTime?
+  viewCount    Int       @default(0)
+  version      Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slides       Slide[]
+  versions     PresentationVersion[]
+  shareLinks   ShareLink[]
+  favorites    Favorite[]
+  generationJobs GenerationJob[]
+  exportJobs   ExportJob[]
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([isDeleted])
+}
+
+model Slide {
+  id             String       @id @default(uuid())
+  presentationId String
+  order          Int
+  slideId        String       // client-stable slide ID
+  title          String
+  subtitle       String?
+  layoutType     String       // cover, agenda, section_divider, text, image_text, full_image, comparison, stats, timeline, process, chart, diagram, quote, conclusion, references
+  body           String?
+  bulletPoints   String?      // JSON array of strings
+  imagePrompt    String?
+  imageAsset     String?
+  chartData      String?      // JSON chart object
+  speakerNotes   String?
+  citations      String?      // JSON citations
+  themeTokens    String?      // JSON slide-level overrides
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+
+  @@index([presentationId, order])
+}
+
+model Template {
+  id               String            @id @default(uuid())
+  slug             String            @unique
+  name             String
+  description      String
+  category         String
+  tags             String            // JSON array of strings
+  previewThumbnail String
+  isPremium        Boolean           @default(false)
+  colorPalette     String            // JSON palette object
+  typography       String            // JSON typography object
+  supportedLayouts String            // JSON array of layout types
+  sampleSlides     String            // JSON array of sample slides
+  version          String            @default("1.0.0")
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  versions         TemplateVersion[]
+  favorites        Favorite[]
+
+  @@index([slug])
+  @@index([category])
+  @@index([isPremium])
+}
+
+model TemplateVersion {
+  id         String   @id @default(uuid())
+  templateId String
+  version    String
+  definition String   // Complete JSON template configuration
+  createdAt  DateTime @default(now())
+
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id          String     @id @default(uuid())
+  userId      String
+  workspaceId String?
+  name        String
+  url         String
+  type        String     // IMAGE, DOCUMENT, ICON
+  size        Int        @default(0)
+  mimeType    String?
+  createdAt   DateTime   @default(now())
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+}
+
+model PresentationVersion {
+  id             String       @id @default(uuid())
+  presentationId String
+  version        Int
+  snapshot       String       // Full JSON snapshot of presentation and slides
+  changeSummary  String?
+  createdAt      DateTime     @default(now())
+
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+}
+
+model ShareLink {
+  id             String       @id @default(uuid())
+  presentationId String
+  token          String       @unique
+  accessLevel    String       @default("VIEW") // VIEW, EDIT
+  expiresAt      DateTime?
+  passwordHash   String?
+  createdAt      DateTime     @default(now())
+
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+}
+
+model Favorite {
+  id             String        @id @default(uuid())
+  userId         String
+  presentationId String?
+  templateId     String?
+  createdAt      DateTime      @default(now())
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  presentation   Presentation? @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  template       Template?     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, presentationId, templateId])
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  plan             String    @default("FREE") // FREE, PRO, ENTERPRISE
+  status           String    @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELED
+  currentPeriodEnd DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UsageRecord {
+  id         String   @id @default(uuid())
+  userId     String
+  metric     String   // SLIDES_GENERATED, PRESENTATIONS_CREATED, EXPORTS_COUNT, AI_PROMPT_CALLS
+  quantity   Int      @default(1)
+  recordedAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, metric])
+}
+
+model GenerationJob {
+  id             String        @id @default(uuid())
+  userId         String
+  presentationId String?
+  status         String        @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  progress       Int           @default(0)
+  currentStep    String        @default("Initialized")
+  prompt         String
+  error          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  presentation   Presentation? @relation(fields: [presentationId], references: [id], onDelete: SetNull)
+}
+
+model ExportJob {
+  id             String        @id @default(uuid())
+  userId         String
+  presentationId String
+  format         String        // PDF, PPTX, PNG
+  status         String        @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  fileUrl        String?
+  error          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  presentation   Presentation  @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     String?  // JSON
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([resourceType])
+}
