@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { CreatePresentationInput, OutlineItem, SlideDocument, SlideLayoutType } from "@/types";
 import { getTemplateById } from "@/lib/templates/registry";
 import { generateId } from "@/lib/utils";
+import { getDistinctSlideImage } from "@/lib/services/imageService";
 
 export interface AIProviderStatus {
   isConfigured: boolean;
@@ -299,7 +300,15 @@ Return a JSON array of slide objects strictly following this schema:
           body: raw.body || "",
           bulletPoints: Array.isArray(raw.bulletPoints) ? raw.bulletPoints : [],
           imagePrompt: raw.imagePrompt || undefined,
-          imageAsset: raw.imageAsset || template?.previewThumbnail || undefined,
+          imageAsset:
+            raw.imageAsset && raw.imageAsset.startsWith("http")
+              ? raw.imageAsset
+              : getDistinctSlideImage(
+                  input.prompt,
+                  raw.title || outline[idx]?.title || "",
+                  (raw.layoutType as SlideLayoutType) || outline[idx]?.layoutType || "text",
+                  idx
+                ),
           chartData: raw.chartData || undefined,
           speakerNotes: raw.speakerNotes || "",
           citations: raw.citations || [],
@@ -336,7 +345,7 @@ Return a JSON array of slide objects strictly following this schema:
         `Implementation Mandate: Executing phased deployment protocol adhering to governance standards`,
       ],
       imagePrompt: `Cinematic high-resolution 3D visualization illustrating ${item.title.toLowerCase()} in a modern dark cyber tech aesthetic with vibrant glowing accents`,
-      imageAsset: template?.previewThumbnail || "https://images.unsplash.com/photo-1592478411213-6153e4ebc07d?auto=format&fit=crop&w=800&q=80",
+      imageAsset: getDistinctSlideImage(input.prompt, item.title, item.layoutType, idx),
       chartData: isChart ? {
         type: "bar" as const,
         title: `${item.title}: Comparative Benchmark`,
@@ -373,10 +382,6 @@ export async function regenerateSlideWithAI(
   }
 
   const ai = getGeminiClient();
-  const model = ai.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    generationConfig: { responseMimeType: "application/json" },
-  });
 
   const prompt = `You are a presentation copywriter and editor for NOVA DECK AI.
 Current Slide Content:
@@ -394,7 +399,9 @@ Return the updated slide fields in a JSON object strictly conforming to:
   "speakerNotes": "Updated speaker notes"
 }`;
 
-  const result = await model.generateContent(prompt);
-  const updated = JSON.parse(result.response.text());
+  const text = await executeGeminiWithFallback(ai, prompt, {
+    responseMimeType: "application/json",
+  });
+  const updated = JSON.parse(text);
   return updated;
 }

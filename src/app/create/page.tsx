@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/ui/Navbar";
 import { Footer } from "@/components/ui/Footer";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "@/components/ui/Toast";
 import { TEMPLATES, getTemplateById } from "@/lib/templates/registry";
+import { getDistinctSlideImage } from "@/lib/services/imageService";
 import {
   Sparkles,
   Wand2,
@@ -77,6 +79,7 @@ function CreatePresentationWizard() {
 
   // User & Entitlement state
   const [user, setUser] = useState<{ id: string; role: string; plan?: string } | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [lockedTemplateAttempt, setLockedTemplateAttempt] = useState<TemplateDefinition | null>(null);
 
@@ -94,9 +97,16 @@ function CreatePresentationWizard() {
             role: data.user.role,
             plan: data.user.subscription?.plan || "PRO",
           });
+        } else {
+          setUser(null);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setUser(null);
+      })
+      .finally(() => {
+        setAuthChecking(false);
+      });
   }, []);
 
   const selectedTemplate = getTemplateById(selectedTemplateId) || TEMPLATES[0];
@@ -205,7 +215,7 @@ function CreatePresentationWizard() {
           `Validated benchmark: 4.2x optimization over baseline systems`,
           `Execution protocol: Phased deployment scheduled per governance requirements`,
         ],
-        imageAsset: selectedTemplate.previewThumbnail,
+        imageAsset: getDistinctSlideImage(prompt || title, item.title, item.layoutType, idx),
         chartData: item.layoutType === "chart" ? {
           type: "bar" as const,
           title: `${item.title}: Comparative Metric`,
@@ -322,6 +332,87 @@ function CreatePresentationWizard() {
       t.category.toLowerCase().includes(templateSearchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-nova-midnight text-nova-softWhite flex flex-col justify-between">
+        <Navbar />
+        <main className="max-w-xl mx-auto px-4 pt-40 pb-20 w-full flex-1 flex flex-col items-center justify-center text-center">
+          <RefreshCw className="w-8 h-8 text-nova-cyan animate-spin mb-4" />
+          <p className="text-sm text-nova-muted font-medium">Verifying creator credentials...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-nova-midnight text-nova-softWhite flex flex-col justify-between">
+        <Navbar />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-24 w-full flex-1 flex flex-col items-center justify-center">
+          <div className="w-full max-w-xl bg-nova-surface/90 border border-nova-border rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-xl text-center space-y-6 relative overflow-hidden">
+            {/* Ambient Glow */}
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-72 bg-gradient-to-r from-nova-primary/20 to-nova-accent/20 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="w-16 h-16 rounded-2xl bg-nova-midnight border border-nova-border flex items-center justify-center mx-auto text-nova-cyan shadow-lg shadow-nova-cyan/10">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <div>
+              <span className="text-xs font-mono uppercase px-3 py-1 rounded-full bg-nova-midnight border border-nova-border text-nova-cyan">
+                Authentication Required
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-4 tracking-tight">
+                Sign in to Create Presentations
+              </h1>
+              <p className="mt-2 text-sm text-nova-muted leading-relaxed">
+                You must be logged in to access the NOVA DECK AI Presentation Creator, configure templates, customize outlines, and generate presentation slides.
+              </p>
+            </div>
+
+            {/* 4-Step Process Preview */}
+            <div className="p-4 rounded-2xl bg-nova-midnight/80 border border-nova-border/60 text-left space-y-2.5">
+              <div className="text-xs font-bold text-white uppercase tracking-wider mb-2">
+                Included in Your Creator Studio:
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-nova-softWhite">
+                <CheckCircle2 className="w-4 h-4 text-nova-cyan shrink-0" />
+                <span>1. Prompt & Source: Turn topics or research documents into slide decks</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-nova-softWhite">
+                <CheckCircle2 className="w-4 h-4 text-nova-cyan shrink-0" />
+                <span>2. Configure & Template: Choose from 50 production-grade design systems</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-nova-softWhite">
+                <CheckCircle2 className="w-4 h-4 text-nova-cyan shrink-0" />
+                <span>3. Interactive Outline: Add, delete, and re-order slide layouts</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-nova-softWhite">
+                <CheckCircle2 className="w-4 h-4 text-nova-cyan shrink-0" />
+                <span>4. AI Synthesis: Auto-generate tailored slides with high-res imagery & exports</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <Link href="/login?redirect=/create" className="w-full">
+                <Button variant="cyan" size="lg" className="w-full font-bold">
+                  Sign In to Continue
+                </Button>
+              </Link>
+              <Link href="/register?redirect=/create" className="w-full">
+                <Button variant="outline" size="lg" className="w-full font-bold">
+                  Create Free Account
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-nova-midnight text-nova-softWhite flex flex-col justify-between">
