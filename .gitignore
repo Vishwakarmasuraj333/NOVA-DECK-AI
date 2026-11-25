@@ -17,6 +17,7 @@ prisma/*.db
 prisma/*.db-journal
 *.db
 *.db-journal
+!prisma/starter.db
 
 # Logs
 npm-debug.log*

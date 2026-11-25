@@ -107,10 +107,12 @@ export interface TemplateDefinition {
     | "Technology"
     | "Business"
     | "Academic"
+    | "Education"
     | "Creative"
     | "Marketing"
     | "Minimal"
-    | "Industry";
+    | "Industry"
+    | "Data";
   tags: string[];
   previewThumbnail: string;
   isPremium: boolean;

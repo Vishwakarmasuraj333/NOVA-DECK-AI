@@ -18,10 +18,15 @@ export async function GET(req: Request) {
     // If not logged in, we check if there's any public/guest items or return empty
     if (!userId) {
       // Find or create a demo user if in local development so the app is immediately testable!
-      const demoUser = await prisma.user.findFirst();
-      if (demoUser) {
-        userId = demoUser.id;
-      } else {
+      try {
+        const demoUser = await prisma.user.findFirst();
+        if (demoUser) {
+          userId = demoUser.id;
+        } else {
+          return NextResponse.json({ presentations: [], total: 0 });
+        }
+      } catch (dbErr) {
+        console.warn("Database query warning in GET /api/presentations:", dbErr);
         return NextResponse.json({ presentations: [], total: 0 });
       }
     }
@@ -83,17 +88,23 @@ export async function POST(req: Request) {
     let user = await getCurrentUser();
     if (!user) {
       // Auto-assign or create default workspace for seamless first-time test
-      const demoUser = await prisma.user.findFirst({
-        include: { subscription: true, workspaces: { include: { workspace: true } } },
-      });
-      if (demoUser) {
-        user = {
-          id: demoUser.id,
-          name: demoUser.name,
-          email: demoUser.email,
-          role: demoUser.role as any,
-        };
-      } else {
+      try {
+        const demoUser = await prisma.user.findFirst({
+          include: { subscription: true, workspaces: { include: { workspace: true } } },
+        });
+        if (demoUser) {
+          user = {
+            id: demoUser.id,
+            name: demoUser.name,
+            email: demoUser.email,
+            role: demoUser.role as any,
+          };
+        }
+      } catch (dbErr) {
+        console.warn("Database query warning in POST /api/presentations:", dbErr);
+      }
+
+      if (!user) {
         return NextResponse.json({ error: "Authentication required to save presentations" }, { status: 401 });
       }
     }

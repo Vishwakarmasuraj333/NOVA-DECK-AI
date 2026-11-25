@@ -229,7 +229,7 @@ export default function TemplateDetailPage() {
           </div>
 
           <p className="text-xs text-nova-muted leading-relaxed">
-            Unlock all 28+ cinematic presentation templates, PPTX exports, and AI slide regenerations with Pro Studio.
+            Unlock all 50 cinematic presentation templates, PPTX exports, and unlimited AI slide regenerations with Pro Studio.
           </p>
 
           <div className="pt-2 flex flex-col gap-2">

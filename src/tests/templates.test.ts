@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { TEMPLATES, getTemplateById, getAllCategories } from "../lib/templates/registry";
 
-describe("Template Registry and Specifications", () => {
-  it("should contain at least 24 distinct templates (implements 28)", () => {
-    expect(TEMPLATES.length).toBeGreaterThanOrEqual(24);
-    expect(TEMPLATES.length).toBe(28);
+describe("Template Registry and Specifications (50 Distinct Templates)", () => {
+  it("should contain exactly 50 distinct templates as specified", () => {
+    expect(TEMPLATES.length).toBeGreaterThanOrEqual(50);
+    expect(TEMPLATES.length).toBe(50);
   });
 
   it("every template must define unique id, slug, colors, and valid layouts", () => {
@@ -37,16 +37,17 @@ describe("Template Registry and Specifications", () => {
 
     expect(freeTemplates.length).toBeGreaterThan(0);
     expect(premiumTemplates.length).toBeGreaterThan(0);
+    expect(freeTemplates.length + premiumTemplates.length).toBe(50);
   });
 
-  it("getTemplateById should return the matching template or fallback", () => {
+  it("getTemplateById should return the matching template by id or slug", () => {
     const vrTemplate = getTemplateById("virtual-reality-lab");
     expect(vrTemplate).toBeDefined();
     expect(vrTemplate?.name).toBe("Virtual Reality Lab");
 
     const vivaTemplate = getTemplateById("msc-it-viva");
     expect(vivaTemplate).toBeDefined();
-    expect(vivaTemplate?.name).toBe("MSc IT Viva");
+    expect(vivaTemplate?.name).toBe("MSc IT Project Viva");
   });
 
   it("getAllCategories should include 'All' and distinct categories", () => {
@@ -54,6 +55,8 @@ describe("Template Registry and Specifications", () => {
     expect(categories).toContain("All");
     expect(categories).toContain("Technology");
     expect(categories).toContain("Business");
-    expect(categories).toContain("Academic");
+    expect(categories).toContain("Education");
+    expect(categories).toContain("Creative");
+    expect(categories).toContain("Data");
   });
 });
