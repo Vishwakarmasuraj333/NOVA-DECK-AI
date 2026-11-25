@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { toast } from "@/components/ui/Toast";
 import { Trash2, RotateCcw, AlertTriangle } from "lucide-react";
 
 interface TrashItem {
@@ -14,6 +16,7 @@ interface TrashItem {
 export default function TrashPage() {
   const [items, setItems] = useState<TrashItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<TrashItem | null>(null);
 
   const fetchTrash = () => {
     setIsLoading(true);
@@ -36,20 +39,32 @@ export default function TrashPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "restore" }),
       });
-      if (res.ok) fetchTrash();
-    } catch {}
+      if (res.ok) {
+        toast.success("Presentation restored to workspace");
+        fetchTrash();
+      }
+    } catch {
+      toast.error("Failed to restore presentation");
+    }
   };
 
-  const handlePermanentDelete = async (id: string) => {
-    if (!confirm("Permanently destroy this presentation and all associated slide snapshots? This action is irreversible.")) return;
+  const confirmPermanentDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleteTarget(null);
     try {
       const res = await fetch(`/api/presentations/${id}/trash`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete_permanently" }),
       });
-      if (res.ok) fetchTrash();
-    } catch {}
+      if (res.ok) {
+        toast.success("Presentation permanently destroyed");
+        fetchTrash();
+      }
+    } catch {
+      toast.error("Failed to delete presentation");
+    }
   };
 
   return (
@@ -97,7 +112,7 @@ export default function TrashPage() {
                 <Button
                   variant="danger"
                   size="sm"
-                  onClick={() => handlePermanentDelete(item.id)}
+                  onClick={() => setDeleteTarget(item)}
                   className="gap-1.5 text-xs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -108,6 +123,31 @@ export default function TrashPage() {
           ))}
         </div>
       )}
+
+      {/* In-App Permanent Deletion Confirmation Modal (Replaces browser confirm) */}
+      <Modal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        title="Permanently Destroy Presentation?"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-rose-200 leading-relaxed">
+              Permanently destroy <strong className="text-white">"{deleteTarget?.title}"</strong> and all associated slide snapshots? This action is completely irreversible.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" size="sm" onClick={confirmPermanentDelete}>
+              Permanently Destroy
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

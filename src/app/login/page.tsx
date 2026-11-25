@@ -7,7 +7,7 @@ import { NovaLogo } from "@/components/brand/NovaLogo";
 import { Button } from "@/components/ui/Button";
 import { Mail, Lock, AlertCircle, ArrowRight } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get("redirect") || "/dashboard";
@@ -126,5 +126,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-nova-midnight flex items-center justify-center text-nova-softWhite">
+          <div className="w-8 h-8 border-2 border-nova-cyan border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </React.Suspense>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { toast } from "@/components/ui/Toast";
 import { getTemplateById } from "@/lib/templates/registry";
 import {
   Sparkles,
@@ -41,6 +42,7 @@ export default function DashboardOverviewPage() {
 
   // Rename modal
   const [renameTarget, setRenameTarget] = useState<PresentationItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PresentationItem | null>(null);
   const [newTitle, setNewTitle] = useState("");
 
   const fetchPresentations = () => {
@@ -64,19 +66,25 @@ export default function DashboardOverviewPage() {
     try {
       const res = await fetch(`/api/presentations/${id}/duplicate`, { method: "POST" });
       if (res.ok) {
+        toast.success("Presentation duplicated");
         fetchPresentations();
       }
     } catch {}
   };
 
-  const handleMoveToTrash = async (id: string) => {
-    if (!confirm("Move this presentation to trash?")) return;
+  const confirmMoveToTrash = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
+    setDeleteTarget(null);
     try {
       const res = await fetch(`/api/presentations/${id}`, { method: "DELETE" });
       if (res.ok) {
+        toast.success("Moved presentation to trash");
         fetchPresentations();
       }
-    } catch {}
+    } catch {
+      toast.error("Failed to move presentation to trash");
+    }
   };
 
   const handleRename = async (e: React.FormEvent) => {
@@ -210,7 +218,7 @@ export default function DashboardOverviewPage() {
                       <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => handleMoveToTrash(p.id)}
+                      onClick={() => setDeleteTarget(p)}
                       className="p-1.5 rounded-lg hover:text-red-400 hover:bg-nova-surfaceHover transition-colors"
                       title="Delete"
                     >
@@ -253,6 +261,28 @@ export default function DashboardOverviewPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Move to Trash In-App Modal (Replaces browser confirm) */}
+      <Modal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        title="Move Presentation to Trash?"
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-nova-muted leading-relaxed">
+            Are you sure you want to move <strong className="text-white">"{deleteTarget?.title}"</strong> to the trash? You can restore it anytime from your Trash tab.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" size="sm" onClick={confirmMoveToTrash}>
+              Move to Trash
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
